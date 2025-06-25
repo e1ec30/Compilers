@@ -161,6 +161,11 @@ f(?i:alse) {
             return ERROR;
 }
 
+\*\) {
+    cool_yylval.error_msg = "Unmatched *)";
+    return ERROR;
+}
+
 --.* //{printf("Single line comment: %s\n", yytext);}
 
 "+"|"/"|"-"|"*"|"="|"<"|"."|"~"|","|";"|":"|"("|")"|"@"|"{"|"}" {
