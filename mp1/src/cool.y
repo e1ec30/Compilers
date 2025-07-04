@@ -97,7 +97,9 @@ extern int VERBOSE_ERRORS;
 %type <class_> class
 
 /* You will want to change the following line. */
-%type <features> dummy_feature_list
+%type <features> feature_list feats
+%type <feature> feature
+%type <expression> expr
 
 /* Precedence declarations go here. */
 
@@ -117,18 +119,48 @@ class_list
         ;
 
 /* If no parent is specified, the class inherits from the Object class. */
-class  : CLASS TYPEID '{' dummy_feature_list '}' ';'
+class  : CLASS TYPEID '{' feature_list '}' ';'
                 { $$ = class_($2,idtable.add_string("Object"),$4,
                               stringtable.add_string(curr_filename)); }
-        | CLASS TYPEID INHERITS TYPEID '{' dummy_feature_list '}' ';'
+        | CLASS TYPEID INHERITS TYPEID '{' feature_list '}' ';'
                 { $$ = class_($2,$4,$6,stringtable.add_string(curr_filename)); }
         ;
 
 /* Feature list may be empty, but no empty features in list. */
-dummy_feature_list:        /* empty */
+feature_list:        /* empty */
                 {  $$ = nil_Features(); }
+        | feats
         ;
 
+/* Actual feature list */
+feats: feature { $$ = single_Features($1); } /* Single Feature */
+        | feats feature { $$ = append_Features($1, single_Features($2)); } /* Or a list of them */
+        ;
+/* What's a feature */
+feature: OBJECTID ':' TYPEID ';' { $$ = attr($1, $3, no_expr()); } /* An attribute without an initializer*/
+        | OBJECTID ':' TYPEID ASSIGN expr ';' {$$ = attr($1, $3, $5); } /* Or an attribute with an initializing expression */
+        ;
+
+
+/* What's an expression */
+/* Remember to fix up the precedence stuff */
+expr: INT_CONST { $$ = int_const($1); }; /* Could be an int by itself */
+        | BOOL_CONST { $$ = bool_const($1); } /* Just a boolean */
+        | STR_CONST { $$ = string_const($1); } /* Just a string */
+        | OBJECTID { $$ = object($1); } /* Just an object */
+        | NEW TYPEID { $$ = new_($2); } /* New expression */
+        | expr '+' expr { $$ = plus($1, $3); } /* Addition */
+        | expr '-' expr { $$ = sub($1, $3); } /* Subtraction */
+        | expr '*' expr { $$ = mul($1, $3); } /* Multiplication */
+        | expr '/' expr { $$ = divide($1, $3); } /* Division */
+        | ISVOID expr { $$ = isvoid($2); } /* isvoid expr */
+        | expr '<' expr { $$ = lt($1, $3); } /* less than */
+        | expr '=' expr { $$ = eq($1, $3); } /* equal to */
+        | expr LE expr { $$ = leq($1, $3); } /* less than equal to */
+        | OBJECTID ASSIGN expr { $$ = assign($1, $3); } /* An Assignment */
+        | '~' expr { $$ = comp($2); } /* Complement */
+        | NOT expr { $$ = neg($2); } /* Negation */
+        ;
 /* end of grammar */
 %%
 
