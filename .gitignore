@@ -6,3 +6,16 @@ mp1/src/cool-lex.cc
 cscope*
 scratchspace
 mp1/src/cool-support/**
+mp1/src/cool-parse.cc
+mp1/src/cool-tree.cc
+mp1/src/cool.output
+mp1/src/cool.tab.h
+mp1/src/dumptype.cc
+mp1/src/handle_flags.cc
+mp1/src/lextest.cc
+mp1/src/parser
+mp1/src/parser-phase.cc
+mp1/src/stringtab.cc
+mp1/src/tokens-lex.cc
+mp1/src/tree.cc
+mp1/src/utilities.cc
