@@ -97,10 +97,10 @@ extern int VERBOSE_ERRORS;
 %type <class_> class
 
 /* You will want to change the following line. */
-%type <features> feature_list feats
+%type <features> feature_list
 %type <feature> feature
 %type <expression> expr
-%type <expressions> expr_list_semi expr_list_comma
+%type <expressions> expr_list_semi actuals
 %type <formal> formal
 %type <formals> formal_list
 %type <case_> branch
@@ -140,15 +140,8 @@ class  : CLASS TYPEID '{' feature_list '}' ';'
         ;
 
 /* Feature list may be empty, but no empty features in list. */
-feature_list:        
-         feats
-                /* Or empty */
-        |        {  $$ = nil_Features(); }
-        ;
-
-/* Actual feature list */
-feats: feature { $$ = single_Features($1); } /* Single Feature */
-        | feats ';' feature { $$ = append_Features($1, single_Features($3)); } /* Or a list of them */
+feature_list: { $$ = nil_Features(); }
+        | feature_list feature ';' { $$ = append_Features($1, single_Features($2)); } /* Or a list of them */
         ;
 /* What's a feature */
 feature: OBJECTID ':' TYPEID { $$ = attr($1, $3, no_expr()); } /* An attribute without an initializer*/
@@ -179,21 +172,21 @@ expr: INT_CONST { $$ = int_const($1); }; /* Could be an int by itself */
         | '{' expr_list_semi '}' { $$ = block($2); } /* a block */
         | WHILE expr LOOP expr POOL { $$ = loop($2, $4); } /* while */
         | IF expr THEN expr ELSE expr FI { $$ = cond($2, $4, $6); } /* if then else */
-        | OBJECTID '(' expr_list_comma ')' { $$ = dispatch(object(idtable.add_string("self")), $1, $3); } /* id(e, e, ..., e) */
-        | expr '.' OBJECTID '(' expr_list_comma ')' { $$ = dispatch($1, $3, $5); } /* <expr>.id(e, e, ..., e) */
-        | expr '@' TYPEID '.' OBJECTID '(' expr_list_comma ')' { $$ = static_dispatch($1, $3, $5, $7); } /* <expr>@<type>.id(e, ..., e) */
+        | OBJECTID '(' actuals ')' { $$ = dispatch(object(idtable.add_string("self")), $1, $3); } /* id(e, e, ..., e) */
+        | expr '.' OBJECTID '(' actuals ')' { $$ = dispatch($1, $3, $5); } /* <expr>.id(e, e, ..., e) */
+        | expr '@' TYPEID '.' OBJECTID '(' actuals ')' { $$ = static_dispatch($1, $3, $5, $7); } /* <expr>@<type>.id(e, ..., e) */
         | CASE expr OF branch_list ESAC { $$ = typcase($2, $4); } /* case expr of [[ID : TYPE => expr; ]]+esac */
         ;
 
 
 /* A ';' delimited list of expressions */
-expr_list_semi: expr { $$ = single_Expressions($1); }
-        | expr_list_semi ';' expr { $$ = append_Expressions($1, single_Expressions($3)); }
+expr_list_semi: expr ';' { $$ = single_Expressions($1); }
+        | expr_list_semi expr ';' { $$ = append_Expressions($1, single_Expressions($2)); }
 
 /* Comma separated list of exprs for dispatch's */
-expr_list_comma: /* empty */ { $$ = nil_Expressions(); }
+actuals: /* empty */ { $$ = nil_Expressions(); }
         | expr { $$ = single_Expressions($1); }
-        | expr_list_comma ',' expr { $$ = append_Expressions($1, single_Expressions($3)); }
+        | actuals ',' expr { $$ = append_Expressions($1, single_Expressions($3)); }
 
 formal: OBJECTID ':' TYPEID { $$ = formal($1, $3); }
 
