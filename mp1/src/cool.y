@@ -100,9 +100,22 @@ extern int VERBOSE_ERRORS;
 %type <features> feature_list feats
 %type <feature> feature
 %type <expression> expr
+%type <expressions> expr_list_semi expr_list_comma
+%type <formal> formal
+%type <formals> formal_list
+%type <case_> branch
+%type <cases> branch_list
 
 /* Precedence declarations go here. */
-
+%right ASSIGN
+%left NOT
+%nonassoc LE '<' '='
+%left '+' '-'
+%left '*' '/'
+%left ISVOID
+%left '~'
+%left '@'
+%left '.'
 
 %%
 /* 
@@ -127,23 +140,25 @@ class  : CLASS TYPEID '{' feature_list '}' ';'
         ;
 
 /* Feature list may be empty, but no empty features in list. */
-feature_list:        /* empty */
-                {  $$ = nil_Features(); }
-        | feats
+feature_list:        
+         feats
+                /* Or empty */
+        |        {  $$ = nil_Features(); }
         ;
 
 /* Actual feature list */
 feats: feature { $$ = single_Features($1); } /* Single Feature */
-        | feats feature { $$ = append_Features($1, single_Features($2)); } /* Or a list of them */
+        | feats ';' feature { $$ = append_Features($1, single_Features($3)); } /* Or a list of them */
         ;
 /* What's a feature */
-feature: OBJECTID ':' TYPEID ';' { $$ = attr($1, $3, no_expr()); } /* An attribute without an initializer*/
-        | OBJECTID ':' TYPEID ASSIGN expr ';' {$$ = attr($1, $3, $5); } /* Or an attribute with an initializing expression */
+feature: OBJECTID ':' TYPEID { $$ = attr($1, $3, no_expr()); } /* An attribute without an initializer*/
+        | OBJECTID ':' TYPEID ASSIGN expr { $$ = attr($1, $3, $5); } /* Or an attribute with an initializing expression */
+        | OBJECTID '(' formal_list ')' ':' TYPEID '{' expr '}' { $$ = method($1, $3, $6, $8); } /* Or a method */
         ;
-
 
 /* What's an expression */
 /* Remember to fix up the precedence stuff */
+/* Remember to handle let too */
 expr: INT_CONST { $$ = int_const($1); }; /* Could be an int by itself */
         | BOOL_CONST { $$ = bool_const($1); } /* Just a boolean */
         | STR_CONST { $$ = string_const($1); } /* Just a string */
@@ -160,7 +175,36 @@ expr: INT_CONST { $$ = int_const($1); }; /* Could be an int by itself */
         | OBJECTID ASSIGN expr { $$ = assign($1, $3); } /* An Assignment */
         | '~' expr { $$ = comp($2); } /* Complement */
         | NOT expr { $$ = neg($2); } /* Negation */
+        | '(' expr ')' { $$ = $2; } /* An expression wrapped in parens */
+        | '{' expr_list_semi '}' { $$ = block($2); } /* a block */
+        | WHILE expr LOOP expr POOL { $$ = loop($2, $4); } /* while */
+        | IF expr THEN expr ELSE expr FI { $$ = cond($2, $4, $6); } /* if then else */
+        | OBJECTID '(' expr_list_comma ')' { $$ = dispatch(object(idtable.add_string("self")), $1, $3); } /* id(e, e, ..., e) */
+        | expr '.' OBJECTID '(' expr_list_comma ')' { $$ = dispatch($1, $3, $5); } /* <expr>.id(e, e, ..., e) */
+        | expr '@' TYPEID '.' OBJECTID '(' expr_list_comma ')' { $$ = static_dispatch($1, $3, $5, $7); } /* <expr>@<type>.id(e, ..., e) */
+        | CASE expr OF branch_list ESAC { $$ = typcase($2, $4); } /* case expr of [[ID : TYPE => expr; ]]+esac */
         ;
+
+
+/* A ';' delimited list of expressions */
+expr_list_semi: expr { $$ = single_Expressions($1); }
+        | expr_list_semi ';' expr { $$ = append_Expressions($1, single_Expressions($3)); }
+
+/* Comma separated list of exprs for dispatch's */
+expr_list_comma: /* empty */ { $$ = nil_Expressions(); }
+        | expr { $$ = single_Expressions($1); }
+        | expr_list_comma ',' expr { $$ = append_Expressions($1, single_Expressions($3)); }
+
+formal: OBJECTID ':' TYPEID { $$ = formal($1, $3); }
+
+formal_list: { $$ = nil_Formals(); }
+        | formal { $$ = single_Formals($1); }
+        | formal_list ',' formal { $$ = append_Formals($1, single_Formals($3)); }
+
+branch: OBJECTID ':' TYPEID DARROW expr ';' { $$ = branch($1, $3, $5); }
+
+branch_list: branch { $$ = single_Cases($1); }
+        | branch_list branch { $$ = append_Cases($1, single_Cases($2)); }
 /* end of grammar */
 %%
 
