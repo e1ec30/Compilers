@@ -99,7 +99,7 @@ extern int VERBOSE_ERRORS;
 /* You will want to change the following line. */
 %type <features> feature_list
 %type <feature> feature
-%type <expression> expr let_binding
+%type <expression> expr let_construct_inner
 %type <expressions> expr_list_semi actuals
 %type <formal> formal
 %type <formals> formal_list
@@ -178,9 +178,11 @@ expr: INT_CONST { $$ = int_const($1); }; /* Could be an int by itself */
         | expr '.' OBJECTID '(' actuals ')' { $$ = dispatch($1, $3, $5); } /* <expr>.id(e, e, ..., e) */
         | expr '@' TYPEID '.' OBJECTID '(' actuals ')' { $$ = static_dispatch($1, $3, $5, $7); } /* <expr>@<type>.id(e, ..., e) */
         | CASE expr OF branch_list ESAC { $$ = typcase($2, $4); } /* case expr of [[ID : TYPE => expr; ]]+esac */
-        | LET OBJECTID ':' TYPEID ASSIGN expr IN expr {$$ = let($2, $4, $6, $8); } %prec LET/* let with initializer */
-        | LET OBJECTID ':' TYPEID IN expr {$$ = let($2, $4, no_expr(), $6); } %prec LET/* let without initializer */
-        | LET error IN expr %prec LET {}
+        // | LET OBJECTID ':' TYPEID ASSIGN expr IN expr {$$ = let($2, $4, $6, $8); } %prec LET/* let with initializer */
+        // | LET OBJECTID ':' TYPEID IN expr {$$ = let($2, $4, no_expr(), $6); } %prec LET/* let without initializer */
+        // | LET error IN expr %prec LET {}
+        | LET let_construct_inner { $$ = $2; }
+        | LET error let_construct_inner { }
         ;
 
 
@@ -206,6 +208,11 @@ branch: OBJECTID ':' TYPEID DARROW expr ';' { $$ = branch($1, $3, $5); }
 
 branch_list: branch { $$ = single_Cases($1); }
         | branch_list branch { $$ = append_Cases($1, single_Cases($2)); }
+
+let_construct_inner: OBJECTID ':' TYPEID IN expr  %prec LET { $$ = let($1, $3, no_expr(), $5); }
+        | OBJECTID ':' TYPEID ASSIGN expr IN expr %prec LET { $$ = let($1, $3, $5, $7); }
+        | OBJECTID ':' TYPEID ',' let_construct_inner %prec LET { $$ = let($1, $3, no_expr(), $5); }
+        | OBJECTID ':' TYPEID ASSIGN expr ',' let_construct_inner %prec LET { $$ = let($1, $3, $5, $7); }
 /* end of grammar */
 %%
 
