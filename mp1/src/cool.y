@@ -153,7 +153,7 @@ feature: OBJECTID ':' TYPEID { $$ = attr($1, $3, no_expr()); } /* An attribute w
         ;
 
 /* What's an expression */
-/* FIXME: LET construct rule rule is incorrect. Currently only works with on binding */
+/* FIXME: LET construct rule rule is incorrect. Currently only works with one binding */
 expr: INT_CONST { $$ = int_const($1); }; /* Could be an int by itself */
         | BOOL_CONST { $$ = bool_const($1); } /* Just a boolean */
         | STR_CONST { $$ = string_const($1); } /* Just a string */
