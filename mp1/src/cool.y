@@ -130,6 +130,7 @@ class_list
                 { $$ = single_Classes($1); }
         | class_list class /* several classes */
                 { $$ = append_Classes($1,single_Classes($2)); }
+        | class_list error
         ;
 
 /* If no parent is specified, the class inherits from the Object class. */
@@ -143,6 +144,7 @@ class  : CLASS TYPEID '{' feature_list '}' ';'
 /* Feature list may be empty, but no empty features in list. */
 feature_list: { $$ = nil_Features(); }
         | feature_list feature ';' { $$ = append_Features($1, single_Features($2)); } /* Or a list of them */
+        | feature_list error
         ;
 /* What's a feature */
 feature: OBJECTID ':' TYPEID { $$ = attr($1, $3, no_expr()); } /* An attribute without an initializer*/
@@ -179,12 +181,14 @@ expr: INT_CONST { $$ = int_const($1); }; /* Could be an int by itself */
         | CASE expr OF branch_list ESAC { $$ = typcase($2, $4); } /* case expr of [[ID : TYPE => expr; ]]+esac */
         | LET OBJECTID ':' TYPEID ASSIGN expr IN expr {$$ = let($2, $4, $6, $8); } %prec LET/* let with initializer */
         | LET OBJECTID ':' TYPEID IN expr {$$ = let($2, $4, no_expr(), $6); } %prec LET/* let without initializer */
+        | LET error IN expr %prec LET {}
         ;
 
 
 /* A ';' delimited list of expressions */
 expr_list_semi: expr ';' { $$ = single_Expressions($1); }
         | expr_list_semi expr ';' { $$ = append_Expressions($1, single_Expressions($2)); }
+        | expr_list_semi error
 
 /* Comma separated list of exprs for dispatch's */
 actuals: /* empty */ { $$ = nil_Expressions(); }
