@@ -109,6 +109,7 @@ extern int VERBOSE_ERRORS;
 /* Precedence declarations go here. */
 %right ASSIGN
 %left NOT
+%precedence LET
 %nonassoc LE '<' '='
 %left '+' '-'
 %left '*' '/'
@@ -176,6 +177,8 @@ expr: INT_CONST { $$ = int_const($1); }; /* Could be an int by itself */
         | expr '.' OBJECTID '(' actuals ')' { $$ = dispatch($1, $3, $5); } /* <expr>.id(e, e, ..., e) */
         | expr '@' TYPEID '.' OBJECTID '(' actuals ')' { $$ = static_dispatch($1, $3, $5, $7); } /* <expr>@<type>.id(e, ..., e) */
         | CASE expr OF branch_list ESAC { $$ = typcase($2, $4); } /* case expr of [[ID : TYPE => expr; ]]+esac */
+        | LET OBJECTID ':' TYPEID ASSIGN expr IN expr {$$ = let($2, $4, $6, $8); } %prec LET/* let with initializer */
+        | LET OBJECTID ':' TYPEID IN expr {$$ = let($2, $4, no_expr(), $6); } %prec LET/* let without initializer */
         ;
 
 
