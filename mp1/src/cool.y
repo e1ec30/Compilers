@@ -99,7 +99,7 @@ extern int VERBOSE_ERRORS;
 /* You will want to change the following line. */
 %type <features> feature_list
 %type <feature> feature
-%type <expression> expr
+%type <expression> expr let_binding
 %type <expressions> expr_list_semi actuals
 %type <formal> formal
 %type <formals> formal_list
@@ -153,8 +153,7 @@ feature: OBJECTID ':' TYPEID { $$ = attr($1, $3, no_expr()); } /* An attribute w
         ;
 
 /* What's an expression */
-/* Remember to fix up the precedence stuff */
-/* Remember to handle let too */
+/* FIXME: LET construct rule rule is incorrect. Currently only works with on binding */
 expr: INT_CONST { $$ = int_const($1); }; /* Could be an int by itself */
         | BOOL_CONST { $$ = bool_const($1); } /* Just a boolean */
         | STR_CONST { $$ = string_const($1); } /* Just a string */
@@ -169,8 +168,8 @@ expr: INT_CONST { $$ = int_const($1); }; /* Could be an int by itself */
         | expr '=' expr { $$ = eq($1, $3); } /* equal to */
         | expr LE expr { $$ = leq($1, $3); } /* less than equal to */
         | OBJECTID ASSIGN expr { $$ = assign($1, $3); } /* An Assignment */
-        | '~' expr { $$ = comp($2); } /* Complement */
-        | NOT expr { $$ = neg($2); } /* Negation */
+        | '~' expr { $$ = neg($2); } /* Complement */
+        | NOT expr { $$ = comp($2); } /* Negation */
         | '(' expr ')' { $$ = $2; } /* An expression wrapped in parens */
         | '{' expr_list_semi '}' { $$ = block($2); } /* a block */
         | WHILE expr LOOP expr POOL { $$ = loop($2, $4); } /* while */
@@ -183,6 +182,8 @@ expr: INT_CONST { $$ = int_const($1); }; /* Could be an int by itself */
         | LET OBJECTID ':' TYPEID IN expr {$$ = let($2, $4, no_expr(), $6); } %prec LET/* let without initializer */
         | LET error IN expr %prec LET {}
         ;
+
+
 
 
 /* A ';' delimited list of expressions */
