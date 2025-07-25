@@ -1,7 +1,11 @@
 .vscode
 *.o
 *.tar
-*.ll    
+*.ll
+*.ast
+*.bc
+*.exe
+*.s    
 **/reference-binaries/**
 mp1/src/lexer
 mp1/src/cool-lex.cc
