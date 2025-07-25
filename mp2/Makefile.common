@@ -53,10 +53,10 @@ verify: $(SRCS:%.cl=%.verify)
 	llvm-as $< -o $@
 
 %.s: %.bc
-	llc --filetype=asm $< -o $@
+	llc --filetype=asm -x86-asm-syntax=intel $< -o $@
 
 %.exe: %.s $(COOLRT)
-	$(CC) -g $+ -o $@
+	$(CC) -g -no-pie $+ -o $@
 
 %.verify: %.bc
 	$(OPT) -verify $< | llvm-dis -o $@
