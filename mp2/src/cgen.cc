@@ -9,10 +9,12 @@
 #include "cgen.h"
 #include <sstream>
 #include <string>
+// e1ec30: For printf
+#include "cool-io.h"
 
 //
 extern int cgen_debug;
-
+extern void emit_string_constant(ostream &str, char *s);
 //////////////////////////////////////////////////////////////////////
 //
 // Symbols
@@ -465,7 +467,7 @@ void CgenClassTable::setup_classes(CgenNode *c, int depth) {
   // MAY ADD CODE HERE
   // if you want to give classes more setup information
 
-  c->setup(current_tag++, depth);
+  c->setup(current_tag++, depth, ct_stream);
   for (auto child : c->get_children())
     setup_classes(child, depth + 1);
 
@@ -510,11 +512,40 @@ void CgenClassTable::code_classes(CgenNode *c) {
 // by generating the code to execute (new Main).main()
 //
 void CgenClassTable::code_main(){
-// Define a function main that has no parameters and returns an i32
+  // Define a function main that has no parameters and returns an i32
+  // Define an entry basic block
+  
+  // Call Main_main(). This returns int* for phase 1, Object for phase 2
 
-// Define an entry basic block
+  ValuePrinter vp(*ct_stream);
 
-// Call Main_main(). This returns int* for phase 1, Object for phase 2
+  vector<operand> op_args;
+  std::string lit = std::string("Main_main() returned %d\n");
+  std::string printout_name = std::string("main.printout.str");
+
+  const_value printout(op_arr_type(INT8, lit.length()+1), lit, true);
+  vp.init_constant(printout_name, printout);
+
+  vp.define(INT32, std::string("main"), op_args);
+  vp.begin_block(std::string("entry"));
+  vector<op_type> type_vec;
+  operand retval = vp.call(type_vec, INT32, std::string("Main_main"), true, op_args);
+  
+  std::vector<operand> gep_vec;
+  gep_vec.push_back(global_value(op_arr_type(INT8, lit.length()+1).get_ptr_type(), printout_name));
+  gep_vec.push_back(int_value(0));
+  gep_vec.push_back(int_value(0));
+  operand printout_ptr = vp.getelementptr(printout.get_type(), gep_vec, INT8_PTR);
+
+  op_args.push_back(printout_ptr);
+  op_args.push_back(retval);
+  type_vec.push_back(op_type(INT8_PTR));
+  type_vec.push_back(op_type(VAR_ARG));
+  vp.call(type_vec, INT32, std::string("printf"), true, op_args);
+
+  vp.ret(retval);
+  
+  vp.end_define();
 
 #ifndef MP3
 // Get the address of the string "Main_main() returned %d\n" using
@@ -563,8 +594,9 @@ void CgenNode::set_parentnd(CgenNode *p) {
 //  - create the types for the class and its vtable
 //  - create global definitions used by the class such as the class vtable
 //
-void CgenNode::setup(int tag, int depth) {
+void CgenNode::setup(int tag, int depth, std::ostream* ct_stream) {
   this->tag = tag;
+  this->ct_stream = ct_stream;
 #ifdef MP3
   layout_features();
 
@@ -606,6 +638,8 @@ void CgenNode::codeGenMainmain() {
   // Generally what you need to do are:
   // -- setup or create the environment, env, for translating this method
   // -- invoke mainMethod->code(env) to translate the method
+  CgenEnvironment env(*ct_stream, this);
+  mainMethod->code(&env);
 }
 
 #endif
@@ -706,6 +740,21 @@ void method_class::code(CgenEnvironment *env) {
     std::cerr << "method" << endl;
 
   // ADD CODE HERE
+
+  ValuePrinter vp(*env->cur_stream);
+  vector<operand> args;
+
+  vp.define(INT32, std::string("Main_main"), args);
+  vp.begin_block(std::string("entry"));
+  operand retval = expr->code(env);
+  vp.ret(retval);
+
+  vector<op_type> type_vec;
+  vp.begin_block("abort");
+  vp.call(type_vec, VOID, std::string("abort"), true, args);
+  vp.unreachable();
+
+  vp.end_define();
 }
 
 //
@@ -741,7 +790,13 @@ operand block_class::code(CgenEnvironment *env) {
     std::cerr << "block" << endl;
   // ADD CODE HERE AND REPLACE "return operand()" WITH SOMETHING
   // MORE MEANINGFUL
-  return operand();
+  operand ret = operand();
+
+  // e1ec30: Generate code for everything in body, and keep the last one.
+  for (auto e : this->body) {
+    ret = e->code(env);
+  }
+  return ret;
 }
 
 operand let_class::code(CgenEnvironment *env) {
@@ -757,7 +812,11 @@ operand plus_class::code(CgenEnvironment *env) {
     std::cerr << "plus" << endl;
   // ADD CODE HERE AND REPLACE "return operand()" WITH SOMETHING
   // MORE MEANINGFUL
-  return operand();
+  ValuePrinter vp(*env->cur_stream);
+  operand lhs = this->e1->code(env);
+  operand rhs = this->e2->code(env);
+  operand res = vp.add(lhs, rhs);
+  return res;
 }
 
 operand sub_class::code(CgenEnvironment *env) {
@@ -765,7 +824,11 @@ operand sub_class::code(CgenEnvironment *env) {
     std::cerr << "sub" << endl;
   // ADD CODE HERE AND REPLACE "return operand()" WITH SOMETHING
   // MORE MEANINGFUL
-  return operand();
+  ValuePrinter vp(*env->cur_stream);
+  operand lhs = this->e1->code(env);
+  operand rhs = this->e2->code(env);
+  operand res = vp.sub(lhs, rhs);
+  return res;
 }
 
 operand mul_class::code(CgenEnvironment *env) {
@@ -773,7 +836,11 @@ operand mul_class::code(CgenEnvironment *env) {
     std::cerr << "mul" << endl;
   // ADD CODE HERE AND REPLACE "return operand()" WITH SOMETHING
   // MORE MEANINGFUL
-  return operand();
+  ValuePrinter vp(*env->cur_stream);
+  operand lhs = this->e1->code(env);
+  operand rhs = this->e2->code(env);
+  operand res = vp.mul(lhs, rhs);
+  return res;
 }
 
 operand divide_class::code(CgenEnvironment *env) {
@@ -829,7 +896,9 @@ operand int_const_class::code(CgenEnvironment *env) {
     std::cerr << "Integer Constant" << endl;
   // ADD CODE HERE AND REPLACE "return operand()" WITH SOMETHING
   // MORE MEANINGFUL
-  return operand();
+  ValuePrinter vp(*env->cur_stream);
+  int val = std::atoi(this->token->get_string());
+  return int_value(val);
 }
 
 operand bool_const_class::code(CgenEnvironment *env) {

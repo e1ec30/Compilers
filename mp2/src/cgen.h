@@ -89,6 +89,9 @@ class CgenNode : public class__class {
 public:
   enum Basicness { Basic, NotBasic };
 
+  // e1ec30: The output stream from CGenClassTable
+  std::ostream* ct_stream;
+
 #ifndef MP3
   void codeGenMainmain();
 #endif
@@ -129,7 +132,7 @@ public:
   virtual ~CgenNode() {}
 
   // Class setup. You need to write the body of this function.
-  void setup(int tag, int depth);
+  void setup(int tag, int depth, std::ostream* ct_stream);
 
   // Class codegen. You need to write the body of this function.
   void code_class();
