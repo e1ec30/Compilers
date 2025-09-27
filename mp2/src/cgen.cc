@@ -543,7 +543,7 @@ void CgenClassTable::code_main(){
   type_vec.push_back(op_type(VAR_ARG));
   vp.call(type_vec, INT32, std::string("printf"), true, op_args);
 
-  vp.ret(retval);
+  vp.ret(int_value(0));
   
   vp.end_define();
 
@@ -766,6 +766,10 @@ operand assign_class::code(CgenEnvironment *env) {
     std::cerr << "assign" << endl;
   // ADD CODE HERE AND REPLACE "return operand()" WITH SOMETHING
   // MORE MEANINGFUL
+  ValuePrinter vp(*env->cur_stream);
+  operand *target = env->lookup(this->name);
+  operand val = this->expr->code(env);
+  vp.store(val, *target);
   return operand();
 }
 
@@ -774,7 +778,41 @@ operand cond_class::code(CgenEnvironment *env) {
     std::cerr << "cond" << endl;
   // ADD CODE HERE AND REPLACE "return operand()" WITH SOMETHING
   // MORE MEANINGFUL
-  return operand();
+  ValuePrinter vp(*env->cur_stream);
+  operand res = operand();
+  op_type_id res_type;
+  
+  // e1ec30: First, get the type of the then or else part, they're supposed to be the same in MP2
+  auto t = this->then_exp->get_type()->get_string();
+  if (strcmp(t, "Bool") == 0) {
+    res_type = INT1;
+  }
+  else if (strcmp(t, "Int") == 0) {
+    res_type = INT32;
+  }
+  res = vp.alloca_mem(res_type);
+
+  operand pred = this->pred->code(env);
+  operand then_val = this->then_exp->code(env);
+  operand else_val = this->else_exp->code(env);
+
+  label then_branch = env->new_label("true.", true);
+  label else_branch = env->new_label("false.", true);
+  label end_branch = env->new_label("end.", true);
+  vp.branch_cond(pred, then_branch, else_branch);
+
+  vp.begin_block(then_branch);
+  vp.store(then_val, res);
+  vp.branch_uncond(end_branch);
+
+  vp.begin_block(else_branch);
+  vp.store(else_val, res);
+  vp.branch_uncond(end_branch);
+
+  vp.begin_block(end_branch);
+  operand ret = vp.load(res_type, res);
+
+  return ret;
 }
 
 operand loop_class::code(CgenEnvironment *env) {
@@ -804,7 +842,38 @@ operand let_class::code(CgenEnvironment *env) {
     std::cerr << "let" << endl;
   // ADD CODE HERE AND REPLACE "return operand()" WITH SOMETHING
   // MORE MEANINGFUL
-  return operand();
+
+  ValuePrinter vp(*env->cur_stream);
+
+  //e1ec30: Here, I just need to make a new name and keep it in the environment while the body is generated
+  //e1ec30: After which I discard it.
+  op_type_id res_type;
+  operand def;
+
+  Symbol name = this->identifier;
+  Symbol type_d = this->type_decl;
+
+  auto t = type_d->get_string();
+  if (strcmp(t, "Bool") == 0) {
+    res_type = INT1;
+    def = bool_value(false, false);
+  }
+  else if (strcmp(t, "Int") == 0) {
+    res_type = INT32;
+    def = int_value(0);
+  }
+  operand to_add = vp.alloca_mem(res_type);
+  operand init_code = this->init->code(env);
+  
+  if (init_code.get_type().get_id() == EMPTY) {
+    init_code = def;
+  }
+  vp.store(init_code, to_add);
+  env->add_local(name, to_add);
+
+  operand ret = this->body->code(env);
+  env->kill_local();
+  return ret;
 }
 
 operand plus_class::code(CgenEnvironment *env) {
@@ -848,7 +917,20 @@ operand divide_class::code(CgenEnvironment *env) {
     std::cerr << "div" << endl;
   // ADD CODE HERE AND REPLACE "return operand()" WITH SOMETHING
   // MORE MEANINGFUL
-  return operand();
+
+  // e1ec30: How to do division
+  ValuePrinter vp(*env->cur_stream);
+  std::string ok_label = env->new_ok_label();
+
+  operand lhs = this->e1->code(env);
+  operand rhs = this->e2->code(env);
+
+  operand is_zero = vp.icmp(EQ, rhs, int_value(0));
+  vp.branch_cond(is_zero, "abort", ok_label);
+
+  vp.begin_block(ok_label);
+  operand res = vp.div(lhs, rhs);
+  return res;
 }
 
 operand neg_class::code(CgenEnvironment *env) {
@@ -856,7 +938,12 @@ operand neg_class::code(CgenEnvironment *env) {
     std::cerr << "neg" << endl;
   // ADD CODE HERE AND REPLACE "return operand()" WITH SOMETHING
   // MORE MEANINGFUL
-  return operand();
+  ValuePrinter vp(*env->cur_stream);
+
+  operand op = this->e1->code(env);
+  operand res = vp.sub(int_value(0), op);
+
+  return res;
 }
 
 operand lt_class::code(CgenEnvironment *env) {
@@ -864,7 +951,13 @@ operand lt_class::code(CgenEnvironment *env) {
     std::cerr << "lt" << endl;
   // ADD CODE HERE AND REPLACE "return operand()" WITH SOMETHING
   // MORE MEANINGFUL
-  return operand();
+  ValuePrinter vp(*env->cur_stream);
+
+  operand lhs = this->e1->code(env);
+  operand rhs = this->e2->code(env);
+  operand is_lt = vp.icmp(LE, lhs, rhs);
+  
+  return is_lt;
 }
 
 operand eq_class::code(CgenEnvironment *env) {
@@ -872,7 +965,13 @@ operand eq_class::code(CgenEnvironment *env) {
     std::cerr << "eq" << endl;
   // ADD CODE HERE AND REPLACE "return operand()" WITH SOMETHING
   // MORE MEANINGFUL
-  return operand();
+  ValuePrinter vp(*env->cur_stream);
+
+  operand lhs = this->e1->code(env);
+  operand rhs = this->e2->code(env);
+  operand is_eq = vp.icmp(EQ, lhs, rhs);
+
+  return is_eq;
 }
 
 operand leq_class::code(CgenEnvironment *env) {
@@ -880,7 +979,13 @@ operand leq_class::code(CgenEnvironment *env) {
     std::cerr << "leq" << endl;
   // ADD CODE HERE AND REPLACE "return operand()" WITH SOMETHING
   // MORE MEANINGFUL
-  return operand();
+  ValuePrinter vp(*env->cur_stream);
+
+  operand lhs = this->e1->code(env);
+  operand rhs = this->e2->code(env);
+  operand is_le = vp.icmp(LE, lhs, rhs);
+  
+  return is_le;
 }
 
 operand comp_class::code(CgenEnvironment *env) {
@@ -888,7 +993,10 @@ operand comp_class::code(CgenEnvironment *env) {
     std::cerr << "complement" << endl;
   // ADD CODE HERE AND REPLACE "return operand()" WITH SOMETHING
   // MORE MEANINGFUL
-  return operand();
+  ValuePrinter vp(*env->cur_stream);
+  operand op = this->e1->code(env);
+  operand res = vp.xor_in(op, bool_value(true, false));
+  return res;
 }
 
 operand int_const_class::code(CgenEnvironment *env) {
@@ -906,7 +1014,8 @@ operand bool_const_class::code(CgenEnvironment *env) {
     std::cerr << "Boolean Constant" << endl;
   // ADD CODE HERE AND REPLACE "return operand()" WITH SOMETHING
   // MORE MEANINGFUL
-  return operand();
+  operand val = bool_value(this->val, false);
+  return val;
 }
 
 operand object_class::code(CgenEnvironment *env) {
@@ -914,7 +1023,10 @@ operand object_class::code(CgenEnvironment *env) {
     std::cerr << "Object" << endl;
   // ADD CODE HERE AND REPLACE "return operand()" WITH SOMETHING
   // MORE MEANINGFUL
-  return operand();
+  ValuePrinter vp(*env->cur_stream);
+  operand *obj = env->lookup(this->name);
+  operand ret = vp.load(obj->get_type().get_deref_type(), *obj);
+  return ret;
 }
 
 operand no_expr_class::code(CgenEnvironment *env) {
@@ -1056,7 +1168,6 @@ void assign_class::make_alloca(CgenEnvironment *env) {
 void cond_class::make_alloca(CgenEnvironment *env) {
   if (cgen_debug)
     std::cerr << "cond" << endl;
-
   // ADD ANY CODE HERE
 }
 
