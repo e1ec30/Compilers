@@ -820,6 +820,21 @@ operand loop_class::code(CgenEnvironment *env) {
     std::cerr << "loop" << endl;
   // ADD CODE HERE AND REPLACE "return operand()" WITH SOMETHING
   // MORE MEANINGFUL
+  ValuePrinter vp(*env->cur_stream);
+  label loop_label = env->new_label("loop.", true);
+  label true_label = env->new_label("true.", true);
+  label false_label = env->new_label("false.", true);
+
+  vp.begin_block(loop_label);
+  operand cond = this->pred->code(env);
+  vp.branch_cond(cond, true_label, false_label);
+
+  vp.begin_block(true_label);
+  this->body->code(env);
+  vp.branch_uncond(loop_label);
+
+  vp.begin_block(false_label);
+
   return operand();
 }
 
