@@ -5,7 +5,8 @@
 *.ast
 *.bc
 *.exe
-*.s    
+*.s
+cgen-2
 **/reference-binaries/**
 mp1/src/lexer
 mp1/src/cool-lex.cc
