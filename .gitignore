@@ -13,6 +13,8 @@ mp1/src/lexer
 mp1/src/cool-lex.cc
 cscope*
 scratchspace
+.cache
+compile_commands.json
 mp1/src/cool-support/**
 mp1/src/cool-parse.cc
 mp1/src/cool-tree.cc
