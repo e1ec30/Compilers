@@ -21,10 +21,13 @@ typedef struct _IO_vtable IO_vtable;
 /* class type definitions */
 struct Object {
   /* ADD CODE HERE */
+	Object_vtable *vtblptr;
 };
 
 struct Int {
   /* ADD CODE HERE */
+	Int_vtable *vtblptr;
+	int val;
 };
 
 struct Bool {
@@ -33,6 +36,8 @@ struct Bool {
 
 struct String {
   /* ADD CODE HERE */
+	String_vtable *vtblptr;
+	const char *val;
 };
 
 struct IO {
@@ -42,6 +47,10 @@ struct IO {
 /* vtable type definitions */
 struct _Object_vtable {
   /* ADD CODE HERE */
+	const char *name;
+	Object *(*Object_copy)(Object *);
+	Object *(*Object_abort)(Object *self);
+	const String *(*Object_type_name)(Object *self);
 };
 
 struct _Int_vtable {
@@ -58,11 +67,17 @@ struct _String_vtable {
 
 struct _IO_vtable {
   /* ADD CODE HERE */
+	IO *( *IO_new )(void);
+	IO *( *IO_out_string )(IO *self, String *s);
+	IO *( *IO_out_int )(IO *self, int x);
+	String *( *IO_in_string )(IO *self);
+	int ( *IO_in_int )(IO *self);
 };
 
 /* methods in class Object */
 Object *Object_abort(Object *self);
 const String *Object_type_name(Object *self);
+Object *Object_copy(Object *self);
 /* ADD CODE HERE */
 
 /* methods in class Int */
@@ -73,6 +88,7 @@ const String *Object_type_name(Object *self);
 
 /* methods in class String */
 /* ADD CODE HERE */
+String *String_new(void);
 
 /* methods in class IO */
 IO *IO_new(void);

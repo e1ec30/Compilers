@@ -20,6 +20,10 @@ const char default_string[] = "";
 /* Class vtable prototypes */
 const Object_vtable _Object_vtable_prototype = {
     /* ADD CODE HERE */
+  Object_string,
+  Object_copy,
+  Object_abort,
+  Object_type_name,
 };
 
 /* ADD CODE HERE FOR MORE VTABLE PROTOTYPES */

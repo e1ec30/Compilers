@@ -154,6 +154,17 @@ void CgenClassTable::setup_external_functions() {
 #ifdef MP3
   // ADD CODE HERE
   // Setup external functions for built in object class functions
+
+  // e1ec30: setup functions for %Object Object_new() and co.
+  op_type Object_type("Object");
+  op_type String_type("String");
+  vector<op_type> Object_funcs_args;
+  Object_funcs_args.push_back(Object_type.get_ptr_type());
+  vp.declare(*ct_stream, Object_type.get_ptr_type(), "Object_new", {});
+  vp.declare(*ct_stream, Object_type.get_ptr_type(), "Object_abort", Object_funcs_args); 
+  vp.declare(*ct_stream, String_type.get_ptr_type(), "Object_type_name", Object_funcs_args);
+  vp.declare(*ct_stream, Object_type.get_ptr_type(), "Object_copy", Object_funcs_args);
+  
 #endif
 }
 
@@ -511,10 +522,10 @@ void CgenClassTable::code_classes(CgenNode *c) {
 // Create LLVM entry point. This function will initiate our Cool program
 // by generating the code to execute (new Main).main()
 //
-void CgenClassTable::code_main(){
+void CgenClassTable::code_main() {
   // Define a function main that has no parameters and returns an i32
   // Define an entry basic block
-  
+
   // Call Main_main(). This returns int* for phase 1, Object for phase 2
 
   ValuePrinter vp(*ct_stream);
@@ -523,19 +534,22 @@ void CgenClassTable::code_main(){
   std::string lit = std::string("Main_main() returned %d\n");
   std::string printout_name = std::string("main.printout.str");
 
-  const_value printout(op_arr_type(INT8, lit.length()+1), lit, true);
+  const_value printout(op_arr_type(INT8, lit.length() + 1), lit, true);
   vp.init_constant(printout_name, printout);
 
   vp.define(INT32, std::string("main"), op_args);
   vp.begin_block(std::string("entry"));
   vector<op_type> type_vec;
-  operand retval = vp.call(type_vec, INT32, std::string("Main_main"), true, op_args);
-  
+  operand retval =
+      vp.call(type_vec, INT32, std::string("Main_main"), true, op_args);
+
   std::vector<operand> gep_vec;
-  gep_vec.push_back(global_value(op_arr_type(INT8, lit.length()+1).get_ptr_type(), printout_name));
+  gep_vec.push_back(global_value(
+      op_arr_type(INT8, lit.length() + 1).get_ptr_type(), printout_name));
   gep_vec.push_back(int_value(0));
   gep_vec.push_back(int_value(0));
-  operand printout_ptr = vp.getelementptr(printout.get_type(), gep_vec, INT8_PTR);
+  operand printout_ptr =
+      vp.getelementptr(printout.get_type(), gep_vec, INT8_PTR);
 
   op_args.push_back(printout_ptr);
   op_args.push_back(retval);
@@ -544,22 +558,21 @@ void CgenClassTable::code_main(){
   vp.call(type_vec, INT32, std::string("printf"), true, op_args);
 
   vp.ret(int_value(0));
-  
+
   vp.end_define();
 
 #ifndef MP3
-// Get the address of the string "Main_main() returned %d\n" using
-// getelementptr
+  // Get the address of the string "Main_main() returned %d\n" using
+  // getelementptr
 
-// Call printf with the string address of "Main_main() returned %d\n"
-// and the return value of Main_main() as its arguments
+  // Call printf with the string address of "Main_main() returned %d\n"
+  // and the return value of Main_main() as its arguments
 
-// Insert return 0
+  // Insert return 0
 
 #else
 // MP 3
 #endif
-
 }
 
 ///////////////////////////////////////////////////////////////////////
@@ -594,7 +607,7 @@ void CgenNode::set_parentnd(CgenNode *p) {
 //  - create the types for the class and its vtable
 //  - create global definitions used by the class such as the class vtable
 //
-void CgenNode::setup(int tag, int depth, std::ostream* ct_stream) {
+void CgenNode::setup(int tag, int depth, std::ostream *ct_stream) {
   this->tag = tag;
   this->ct_stream = ct_stream;
 #ifdef MP3
@@ -781,13 +794,13 @@ operand cond_class::code(CgenEnvironment *env) {
   ValuePrinter vp(*env->cur_stream);
   operand res = operand();
   op_type_id res_type;
-  
-  // e1ec30: First, get the type of the then or else part, they're supposed to be the same in MP2
+
+  // e1ec30: First, get the type of the then or else part, they're supposed to
+  // be the same in MP2
   auto t = this->then_exp->get_type()->get_string();
   if (strcmp(t, "Bool") == 0) {
     res_type = INT1;
-  }
-  else if (strcmp(t, "Int") == 0) {
+  } else if (strcmp(t, "Int") == 0) {
     res_type = INT32;
   }
   res = vp.alloca_mem(res_type);
@@ -860,8 +873,8 @@ operand let_class::code(CgenEnvironment *env) {
 
   ValuePrinter vp(*env->cur_stream);
 
-  //e1ec30: Here, I just need to make a new name and keep it in the environment while the body is generated
-  //e1ec30: After which I discard it.
+  // e1ec30: Here, I just need to make a new name and keep it in the environment
+  // while the body is generated e1ec30: After which I discard it.
   op_type_id res_type;
   operand def;
 
@@ -872,14 +885,13 @@ operand let_class::code(CgenEnvironment *env) {
   if (strcmp(t, "Bool") == 0) {
     res_type = INT1;
     def = bool_value(false, false);
-  }
-  else if (strcmp(t, "Int") == 0) {
+  } else if (strcmp(t, "Int") == 0) {
     res_type = INT32;
     def = int_value(0);
   }
   operand to_add = vp.alloca_mem(res_type);
   operand init_code = this->init->code(env);
-  
+
   if (init_code.get_type().get_id() == EMPTY) {
     init_code = def;
   }
@@ -971,7 +983,7 @@ operand lt_class::code(CgenEnvironment *env) {
   operand lhs = this->e1->code(env);
   operand rhs = this->e2->code(env);
   operand is_lt = vp.icmp(LE, lhs, rhs);
-  
+
   return is_lt;
 }
 
@@ -999,7 +1011,7 @@ operand leq_class::code(CgenEnvironment *env) {
   operand lhs = this->e1->code(env);
   operand rhs = this->e2->code(env);
   operand is_le = vp.icmp(LE, lhs, rhs);
-  
+
   return is_le;
 }
 
@@ -1064,8 +1076,8 @@ operand static_dispatch_class::code(CgenEnvironment *env) {
 #ifndef MP3
   assert(0 && "Unsupported case for phase 1");
 #else
-    // ADD CODE HERE AND REPLACE "return operand()" WITH SOMETHING
-    // MORE MEANINGFUL
+  // ADD CODE HERE AND REPLACE "return operand()" WITH SOMETHING
+  // MORE MEANINGFUL
 #endif
   return operand();
 }
@@ -1076,8 +1088,8 @@ operand string_const_class::code(CgenEnvironment *env) {
 #ifndef MP3
   assert(0 && "Unsupported case for phase 1");
 #else
-    // ADD CODE HERE AND REPLACE "return operand()" WITH SOMETHING
-    // MORE MEANINGFUL
+  // ADD CODE HERE AND REPLACE "return operand()" WITH SOMETHING
+  // MORE MEANINGFUL
 #endif
   return operand();
 }
@@ -1088,8 +1100,8 @@ operand dispatch_class::code(CgenEnvironment *env) {
 #ifndef MP3
   assert(0 && "Unsupported case for phase 1");
 #else
-    // ADD CODE HERE AND REPLACE "return operand()" WITH SOMETHING
-    // MORE MEANINGFUL
+  // ADD CODE HERE AND REPLACE "return operand()" WITH SOMETHING
+  // MORE MEANINGFUL
 #endif
   return operand();
 }
@@ -1100,8 +1112,8 @@ operand typcase_class::code(CgenEnvironment *env) {
 #ifndef MP3
   assert(0 && "Unsupported case for phase 1");
 #else
-    // ADD CODE HERE AND REPLACE "return operand()" WITH SOMETHING
-    // MORE MEANINGFUL
+  // ADD CODE HERE AND REPLACE "return operand()" WITH SOMETHING
+  // MORE MEANINGFUL
 #endif
   return operand();
 }
@@ -1112,8 +1124,8 @@ operand new__class::code(CgenEnvironment *env) {
 #ifndef MP3
   assert(0 && "Unsupported case for phase 1");
 #else
-    // ADD CODE HERE AND REPLACE "return operand()" WITH SOMETHING
-    // MORE MEANINGFUL
+  // ADD CODE HERE AND REPLACE "return operand()" WITH SOMETHING
+  // MORE MEANINGFUL
 #endif
   return operand();
 }
@@ -1124,8 +1136,8 @@ operand isvoid_class::code(CgenEnvironment *env) {
 #ifndef MP3
   assert(0 && "Unsupported case for phase 1");
 #else
-    // ADD CODE HERE AND REPLACE "return operand()" WITH SOMETHING
-    // MORE MEANINGFUL
+  // ADD CODE HERE AND REPLACE "return operand()" WITH SOMETHING
+  // MORE MEANINGFUL
 #endif
   return operand();
 }
@@ -1176,7 +1188,7 @@ void attr_class::code(CgenEnvironment *env) {
 void assign_class::make_alloca(CgenEnvironment *env) {
   if (cgen_debug)
     std::cerr << "assign" << endl;
-  
+
   // ADD ANY CODE HERE
 }
 
@@ -1273,28 +1285,28 @@ void comp_class::make_alloca(CgenEnvironment *env) {
 void int_const_class::make_alloca(CgenEnvironment *env) {
   if (cgen_debug)
     std::cerr << "Integer Constant" << endl;
-  
+
   // ADD ANY CODE HERE
 }
 
 void bool_const_class::make_alloca(CgenEnvironment *env) {
   if (cgen_debug)
     std::cerr << "Boolean Constant" << endl;
-  
+
   // ADD ANY CODE HERE
 }
 
 void object_class::make_alloca(CgenEnvironment *env) {
   if (cgen_debug)
     std::cerr << "Object" << endl;
-  
+
   // ADD ANY CODE HERE
 }
 
 void no_expr_class::make_alloca(CgenEnvironment *env) {
   if (cgen_debug)
     std::cerr << "No_expr" << endl;
-  
+
   // ADD ANY CODE HERE
 }
 
