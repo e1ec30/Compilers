@@ -5,6 +5,7 @@
 // Read the comments carefully and add code to build an LLVM program
 //**************************************************************
 
+#include "operand.h"
 #define EXTERN
 #include "cgen.h"
 #include <sstream>
@@ -164,6 +165,74 @@ void CgenClassTable::setup_external_functions() {
   vp.declare(*ct_stream, Object_type.get_ptr_type(), "Object_abort", Object_funcs_args); 
   vp.declare(*ct_stream, String_type.get_ptr_type(), "Object_type_name", Object_funcs_args);
   vp.declare(*ct_stream, Object_type.get_ptr_type(), "Object_copy", Object_funcs_args);
+
+  // e1ec30: setup functions for %IO IO_new() and co.
+  //declare %IO* @IO_new()
+  // declare %IO* @IO_out_string(%IO*, %String*)
+  // declare %IO* @IO_out_int(%IO*, i32)
+  // declare %String* @IO_in_string(%IO*)
+  // declare i32 @IO_in_int(%IO*)
+
+  op_type IO_type("IO");
+  op_type Int_type("Int");
+  vector<op_type> IO_funcs_args;
+
+  IO_funcs_args.push_back(IO_type.get_ptr_type());
+  vp.declare(*ct_stream, IO_type.get_ptr_type(), "IO_new", {});
+
+  IO_funcs_args.push_back(String_type.get_ptr_type());
+  vp.declare(*ct_stream, IO_type.get_ptr_type(), "IO_out_string", IO_funcs_args);
+
+  IO_funcs_args.pop_back(); // Remove the last arg
+  IO_funcs_args.push_back(op_type(INT32));
+  vp.declare(*ct_stream, IO_type.get_ptr_type(), "IO_out_int", IO_funcs_args);
+
+  IO_funcs_args.pop_back();
+  vp.declare(*ct_stream, String_type.get_ptr_type(), "IO_in_string", IO_funcs_args);
+
+  vp.declare(*ct_stream, op_type(INT32), "IO_in_int", IO_funcs_args);
+
+
+  // declare %String* @String_new()
+  // declare i32 @String_length(%String*)
+  // declare %String* @String_concat(%String*, %String*)
+  // declare %String* @String_substr(%String*, i32, i32)
+
+  vector<op_type> String_func_args;
+  vp.declare(*ct_stream, String_type.get_ptr_type(), "String_new", String_func_args);
+
+  String_func_args.push_back(String_type.get_ptr_type());
+  vp.declare(*ct_stream, op_type(INT32), "String_length", String_func_args);
+
+  String_func_args.push_back(String_type.get_ptr_type());
+  vp.declare(*ct_stream, String_type.get_ptr_type(), "String_concat", String_func_args);
+
+  String_func_args.pop_back();
+  String_func_args.push_back(op_type(INT32));
+  String_func_args.push_back(op_type(INT32));
+  vp.declare(*ct_stream, String_type.get_ptr_type(), "String_substr", String_func_args);
+
+
+  // declare %Int* @Int_new()
+  // declare void @Int_init(%Int*, i32)
+  vector<op_type> Int_func_args;
+  vp.declare(*ct_stream, Int_type.get_ptr_type(), "Int_new", Int_func_args);
+
+  Int_func_args.push_back(Int_type.get_ptr_type());
+  Int_func_args.push_back(op_type(INT32));
+  vp.declare(*ct_stream, Int_type.get_ptr_type(), "Int_init", Int_func_args);
+
+  // declare %Bool* @Bool_new()
+  // declare void @Bool_init(%Bool*, i1)
+
+  op_type Bool_type("Bool");
+  vector<op_type> Bool_func_args;
+  vp.declare(*ct_stream, Bool_type.get_ptr_type(), "Bool_new", Bool_func_args);
+
+  Bool_func_args.push_back(Bool_type.get_ptr_type());
+  Bool_func_args.push_back(op_type(INT1));
+  vp.declare(*ct_stream, op_type("void"), "Bool_init", Bool_func_args);
+
   
 #endif
 }
